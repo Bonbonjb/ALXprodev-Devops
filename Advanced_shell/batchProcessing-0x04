@@ -4,11 +4,15 @@ POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 OUTPUT_DIR="pokemon_data_parallel"
 LOG_FILE="error_log_parallel.txt"
 
-# Create the output directory and clear logs
 mkdir -p "$OUTPUT_DIR"
 : > "$LOG_FILE"
 
-# Fetch each Pokémon in the background
+# Store PIDs of background jobs
+PIDS=()
+
+# Trap to clean up child processes if script is interrupted
+trap 'echo "Terminating all background jobs..."; kill ${PIDS[*]} 2>/dev/null' EXIT
+
 for POKEMON in "${POKEMONS[@]}"; do
     (
         echo "Fetching data for $POKEMON..."
@@ -22,8 +26,14 @@ for POKEMON in "${POKEMONS[@]}"; do
             echo "❌ Failed to fetch data for $POKEMON" >> "$LOG_FILE"
         fi
     ) &
+    PIDS+=($!)  # Store PID of background job
 done
 
 # Wait for all background jobs to finish
-wait
+for PID in "${PIDS[@]}"; do
+    wait "$PID"
+done
+
+# Clear the trap so it doesn't run on successful exit
+trap - EXIT
 echo "✅ All Pokémon data fetched in parallel."
